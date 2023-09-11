@@ -102,9 +102,9 @@ class AdaProj(tf.keras.layers.Layer):
         logits = x @ W  # same as cos theta
         logits = tf.reshape(logits, (-1, 1, self.n_classes, self.n_subclusters))
         x_proj = tf.reduce_sum(logits*tf.reshape(W, (1, -1, self.n_classes, self.n_subclusters)),axis=-1)
-        print(x_proj.shape)
         x_proj = tf.nn.l2_normalize(x_proj, axis=1)
         logits = tf.reduce_sum(tf.expand_dims(x, axis=-1)*x_proj, axis=1)
+        #logits = 2*logits-tf.norm(x_proj, axis=1, keepdims=True)**2-1  # try this instead of normalization
         theta = tf.acos(K.clip(logits, -1.0 + K.epsilon(), 1.0 - K.epsilon()))
 
         if training:
