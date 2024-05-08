@@ -8,8 +8,6 @@ import librosa
 from sklearn.metrics import roc_auc_score
 from tqdm import tqdm
 from sklearn.preprocessing import LabelEncoder
-#from nomatch_layer import NoMatchLayer
-#from mixup_layer_simu import MixupLayer
 from mixup_layer import MixupLayer
 from subcluster_adacos import SCAdaCos, AdaProj
 from scipy.stats import hmean
@@ -90,14 +88,7 @@ def model_emb_cnn(num_classes, raw_dim, n_subclusters, use_bias=False):
 
     # FFT
     x = tf.keras.layers.Lambda(lambda x: tf.math.abs(tf.signal.fft(tf.complex(x[:, :, 0], tf.zeros_like(x[:, :, 0])))[:, :int(raw_dim / 2)]))(x_mix)
-    #x = tf.keras.layers.Lambda(lambda x: tf.pad(x[:, :, 0], [[0, 0], [1, raw_dim]]))(x_mix)
-    #x = tf.keras.layers.Lambda(lambda x: tf.math.abs(tf.signal.fft(tf.complex(x, tf.zeros_like(x)))))(x)
-    #x = tf.keras.layers.Lambda(lambda x: tf.math.real(tf.signal.ifft(tf.complex(tf.math.square(x), tf.zeros_like(x)))[:,:int(raw_dim/2)]))(x)
     x = tf.keras.layers.Reshape((-1,1))(x)
-    #x = tf.keras.layers.Lambda(lambda x: tf.pad(x[:,:,0], [[0, 0], [1, raw_dim]]))(x_mix)
-    #x = tf.keras.layers.Lambda(lambda x: tf.nn.conv1d(x[:, tf.newaxis, :], x[:, : , tf.newaxis], stride=1, padding='SAME'))(x)
-    #x = tf.keras.layers.Lambda(lambda x: tfp.stats.auto_correlation(x, axis=1, max_lags=2*raw_dim))(x_mix)
-    #x = tf.keras.layers.Reshape((-1, 1))(x)
     x = tf.keras.layers.Conv1D(128, 256, strides=64, activation='linear', padding='same',
                                kernel_regularizer=l2_weight_decay, use_bias=use_bias)(x)
     x = tf.keras.layers.ReLU()(x)
@@ -220,11 +211,7 @@ def model_emb_cnn(num_classes, raw_dim, n_subclusters, use_bias=False):
     x = tf.keras.layers.MaxPooling2D((18, 1), padding='same')(x)
     x = tf.keras.layers.Flatten(name='flat')(x)
     x = tf.keras.layers.BatchNormalization()(x)
-    #x = tf.keras.layers.Dropout(0.5)(x)
     emb_mel = tf.keras.layers.Dense(128, kernel_regularizer=l2_weight_decay, name='emb_mel', use_bias=use_bias)(x)
-
-    #mean_mel = tf.keras.layers.Dense(128, kernel_regularizer=l2_weight_decay, name='max_mel', use_bias=use_bias)(x_max)
-    #max_mel = tf.keras.layers.Dense(128, kernel_regularizer=l2_weight_decay, name='mean_mel', use_bias=use_bias)(x_mean)
 
     # prepare output
     x = tf.keras.layers.Concatenate(axis=-1)([emb_fft, emb_mel])
@@ -441,7 +428,7 @@ for k_ensemble in np.arange(ensemble_size):
     model = tf.keras.Model(inputs=[data_input, label_input], outputs=[loss_output])
     model.compile(loss=[mixupLoss], optimizer=tf.keras.optimizers.Adam())
     print(model.summary())
-    #input('...')
+
     for k in np.arange(aeons):
         print('ensemble iteration: ' + str(k_ensemble+1))
         print('aeon: ' + str(k+1))
@@ -461,11 +448,6 @@ for k_ensemble in np.arange(ensemble_size):
                                                                'MagnitudeSpectrogram': MagnitudeSpectrogram})
 
         # extract embeddings
-        #emb_model = tf.keras.Model(model.input, model.layers[-2].output)
-        #eval_embs,_,_ = emb_model.predict([eval_raw, np.zeros((eval_raw.shape[0], num_classes_4train))], batch_size=batch_size)
-        #train_embs,_,_ = emb_model.predict([train_raw, np.zeros((train_raw.shape[0], num_classes_4train))], batch_size=batch_size)
-        #unknown_embs,_,_ = emb_model.predict([unknown_raw, np.zeros((unknown_raw.shape[0], num_classes_4train))], batch_size=batch_size)
-        #test_embs,_,_ = emb_model.predict([test_raw, np.zeros((test_raw.shape[0], num_classes_4train))], batch_size=batch_size)
         emb_model = tf.keras.Model(model.input, model.layers[-3].output)
         eval_embs = emb_model.predict([eval_raw, np.zeros((eval_raw.shape[0], num_classes_4train))], batch_size=batch_size)
         train_embs = emb_model.predict([train_raw, np.zeros((train_raw.shape[0], num_classes_4train))], batch_size=batch_size)
@@ -480,23 +462,6 @@ for k_ensemble in np.arange(ensemble_size):
 
         for j, lab in tqdm(enumerate(np.unique(train_labels))):
             cat = le.inverse_transform([lab])[0]
-            """
-            # prepare mean values for domains
-            kmeans = KMeans(n_clusters=n_subclusters, random_state=0).fit(x_train_ln[source_train*(train_labels == lab),:,lab])
-            means_source_ln1 = kmeans.cluster_centers_
-            means_source_ln = means_source_ln1
-            means_target_ln = x_train_ln[~source_train * (train_labels == lab),:,lab]
-
-            # compute cosine distances
-            eval_cos = np.min(1-np.dot(x_eval_ln[eval_labels == lab,:,lab], means_target_ln.transpose()),axis=-1, keepdims=True)
-            eval_cos = np.minimum(eval_cos,np.min(1-np.dot(x_eval_ln[eval_labels == lab,:,lab], means_source_ln.transpose()), axis=-1, keepdims=True))
-            unknown_cos = np.min(1-np.dot(x_unknown_ln[unknown_labels == lab,:,lab], means_target_ln.transpose()),axis=-1, keepdims=True)
-            unknown_cos = np.minimum(unknown_cos,np.min(1-np.dot(x_unknown_ln[unknown_labels == lab,:,lab], means_source_ln.transpose()), axis=-1, keepdims=True))
-            test_cos = np.min(1-np.dot(x_test_ln[test_labels==lab,:,lab], means_target_ln.transpose()), axis=-1, keepdims=True)
-            test_cos = np.minimum(test_cos, np.min(1-np.dot(x_test_ln[test_labels==lab,:,lab], means_source_ln.transpose()), axis=-1, keepdims=True))
-            train_cos = np.min(1-np.dot(x_train_ln[train_labels==lab,:,lab], means_target_ln.transpose()), axis=-1, keepdims=True)
-            train_cos = np.minimum(train_cos, np.min(1-np.dot(x_train_ln[train_labels==lab,:,lab], means_source_ln.transpose()), axis=-1, keepdims=True))
-            """
             kmeans = KMeans(n_clusters=n_subclusters, random_state=0).fit(x_train_ln[source_train*(train_labels == lab)])
             means_source_ln1 = kmeans.cluster_centers_
             means_source_ln = means_source_ln1
