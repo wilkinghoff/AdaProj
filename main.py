@@ -9,7 +9,7 @@ from sklearn.metrics import roc_auc_score
 from tqdm import tqdm
 from sklearn.preprocessing import LabelEncoder
 from mixup_layer import MixupLayer
-from subcluster_adacos import SCAdaCos, AdaProj
+from aml_losses import SCAdaCos, AdaProj
 from scipy.stats import hmean
 from tensorflow.keras import backend as K
 from sklearn.cluster import KMeans
