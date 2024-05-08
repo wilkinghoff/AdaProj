@@ -13,10 +13,6 @@ from subcluster_adacos import SCAdaCos, AdaProj
 from scipy.stats import hmean
 from tensorflow.keras import backend as K
 from sklearn.cluster import KMeans
-from sklearn.mixture import GaussianMixture
-from scipy.spatial.distance import cdist
-import tensorflow_probability as tfp#.stats import auto_correlation
-from sklearn.utils import class_weight
 
 
 def adjust_size(wav, new_size):
@@ -423,8 +419,7 @@ for k_ensemble in np.arange(ensemble_size):
     y_unknown_cat_4train = keras.utils.np_utils.to_categorical(unknown_labels_4train, num_classes=num_classes_4train)
 
     # compile model
-    data_input, label_input, loss_output = model_emb_cnn(num_classes=num_classes_4train,
-                                                             raw_dim=eval_raw.shape[1], n_subclusters=n_subclusters, use_bias=False)
+    data_input, label_input, loss_output = model_emb_cnn(num_classes=num_classes_4train, raw_dim=eval_raw.shape[1], n_subclusters=n_subclusters, use_bias=False)
     model = tf.keras.Model(inputs=[data_input, label_input], outputs=[loss_output])
     model.compile(loss=[mixupLoss], optimizer=tf.keras.optimizers.Adam())
     print(model.summary())
@@ -433,13 +428,12 @@ for k_ensemble in np.arange(ensemble_size):
         print('ensemble iteration: ' + str(k_ensemble+1))
         print('aeon: ' + str(k+1))
         # fit model
-        weight_path = 'wts_' + str(k+1) + 'k_' + str(target_sr) + '_' + str(k_ensemble+1) + '_old_adaproj_ln.h5'
+        weight_path = 'wts_' + str(k+1) + 'k_' + str(target_sr) + '_' + str(k_ensemble+1) + '_adaproj.h5'
         if not os.path.isfile(weight_path):
             model.fit(
                 [train_raw, y_train_cat_4train], y_train_cat_4train, verbose=1,
                 batch_size=batch_size, epochs=epochs,
-                validation_data=([eval_raw, y_eval_cat_4train], y_eval_cat_4train))#,
-                #class_weight=class_weights)
+                validation_data=([eval_raw, y_eval_cat_4train], y_eval_cat_4train)))
             model.save(weight_path)
         else:
             model = tf.keras.models.load_model(weight_path,
