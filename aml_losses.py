@@ -92,8 +92,6 @@ class AdaProj(tf.keras.layers.Layer):
 
     def call(self, inputs, training=None):
         x, y1, y2 = inputs
-        y1_orig = y1
-        y1 = tf.repeat(y1, repeats=self.n_subclusters, axis=-1)
         # normalize feature
         x = tf.nn.l2_normalize(x, axis=1)
         # normalize weights
@@ -104,15 +102,14 @@ class AdaProj(tf.keras.layers.Layer):
         x_proj = tf.reduce_sum(logits*tf.reshape(W, (1, -1, self.n_classes, self.n_subclusters)),axis=-1)
         x_proj = tf.nn.l2_normalize(x_proj, axis=1)
         logits = tf.reduce_sum(tf.expand_dims(x, axis=-1)*x_proj, axis=1)
-        #logits = 2*logits-tf.norm(x_proj, axis=1, keepdims=True)**2-1  # try this instead of normalization
         theta = tf.acos(K.clip(logits, -1.0 + K.epsilon(), 1.0 - K.epsilon()))
 
         if training:
             max_s_logits = tf.reduce_max(self.s * logits)
             #B_avg = tf.exp(self.s*logits-max_s_logits)
-            B_avg = tf.where(y1_orig < 1, tf.exp(self.s * logits-max_s_logits), tf.exp(tf.zeros_like(logits)-max_s_logits))
+            B_avg = tf.where(y1 < 1, tf.exp(self.s * logits-max_s_logits), tf.exp(tf.zeros_like(logits)-max_s_logits))
             B_avg = tf.reduce_mean(tf.reduce_sum(B_avg, axis=1))
-            theta_class = tf.reduce_sum(y1_orig * theta, axis=1)  # take mix-upped angle of mix-upped classes
+            theta_class = tf.reduce_sum(y1 * theta, axis=1)  # take mix-upped angle of mix-upped classes
             theta_med = tfp.stats.percentile(theta_class, q=50)  # computes median
             self.s.assign(
                 (max_s_logits + tf.math.log(B_avg)) /
