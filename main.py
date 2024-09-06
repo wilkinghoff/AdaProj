@@ -433,7 +433,7 @@ for k_ensemble in np.arange(ensemble_size):
             model.fit(
                 [train_raw, y_train_cat_4train], y_train_cat_4train, verbose=1,
                 batch_size=batch_size, epochs=epochs,
-                validation_data=([eval_raw, y_eval_cat_4train], y_eval_cat_4train)))
+                validation_data=([eval_raw, y_eval_cat_4train], y_eval_cat_4train))
             model.save(weight_path)
         else:
             model = tf.keras.models.load_model(weight_path,
