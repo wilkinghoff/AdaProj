@@ -13,7 +13,7 @@ Please reference the following paper when reusing (parts of) the code:
 @inproceedings{wilkinghoff2024adaproj,
    author = {Wilkinghoff, Kevin},
    title = {Ada{P}roj: {A}daptively Scaled Angular Margin Subspace Projections for Anomalous Sound Detection with Auxiliary Classification Tasks},
-   note = {9th Workshop on Detection and Classification of Acoustic Scenes and Events (DCASE)},
+   booktitle = {9th Workshop on Detection and Classification of Acoustic Scenes and Events (DCASE)},
    year = {2024},
    pages = {186--190}
 }
